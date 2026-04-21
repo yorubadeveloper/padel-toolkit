@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { ToolPageHeader } from "@/components/ui/ToolPageHeader";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -12,31 +12,36 @@ import Image from "next/image";
 export default function ExcusesPage() {
   const [selectedCategory, setSelectedCategory] = useState<ExcuseCategory | "all">("all");
   const [currentExcuse, setCurrentExcuse] = useState<Excuse | null>(null);
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [spinKey, setSpinKey] = useState(0);
+  const [isShuffling, setIsShuffling] = useState(false);
+  const [displayKey, setDisplayKey] = useState(0);
+  const lastIdRef = useRef<string | null>(null);
 
   const getFiltered = useCallback(() => {
     if (selectedCategory === "all") return excuses;
     return excuses.filter((e) => e.category === selectedCategory);
   }, [selectedCategory]);
 
-  const generate = () => {
+  const generate = useCallback(() => {
     const filtered = getFiltered();
     if (filtered.length === 0) return;
 
-    setIsSpinning(true);
-    setSpinKey((k) => k + 1);
-    let count = 0;
-    const interval = setInterval(() => {
-      const random = filtered[Math.floor(Math.random() * filtered.length)];
-      setCurrentExcuse(random);
-      count++;
-      if (count > 8) {
-        clearInterval(interval);
-        setIsSpinning(false);
+    setIsShuffling(true);
+
+    // Brief shuffle delay for visual feedback, then show result
+    setTimeout(() => {
+      let pick = filtered[Math.floor(Math.random() * filtered.length)];
+      // Avoid showing the same excuse twice in a row
+      if (filtered.length > 1) {
+        while (pick.id === lastIdRef.current) {
+          pick = filtered[Math.floor(Math.random() * filtered.length)];
+        }
       }
-    }, 80);
-  };
+      lastIdRef.current = pick.id;
+      setCurrentExcuse(pick);
+      setDisplayKey((k) => k + 1);
+      setIsShuffling(false);
+    }, 300);
+  }, [getFiltered]);
 
   const catLabel = (value: ExcuseCategory) =>
     excuseCategories.find((c) => c.value === value)?.label || "";
@@ -76,9 +81,10 @@ export default function ExcusesPage() {
       <div className="flex items-center gap-3 mb-8">
         <button
           onClick={generate}
-          className="bg-accent text-white px-7 py-3.5 rounded-2xl font-semibold text-[15px] hover:bg-accent-dark active:scale-[0.97] transition-all duration-200 shadow-sm shadow-accent/20 hover:shadow-md inline-flex items-center gap-2.5 cursor-pointer"
+          disabled={isShuffling}
+          className="bg-accent text-white px-7 py-3.5 rounded-2xl font-semibold text-[15px] hover:bg-accent-dark active:scale-[0.97] transition-all duration-200 shadow-sm shadow-accent/20 hover:shadow-md inline-flex items-center gap-2.5 cursor-pointer disabled:opacity-70"
         >
-          <Shuffle size={18} className={isSpinning ? "animate-spin" : ""} />
+          <Shuffle size={18} className={isShuffling ? "animate-spin" : ""} />
           {currentExcuse ? "Another excuse" : "Generate excuse"}
         </button>
         <span className="text-xs font-medium text-foreground/25">
@@ -87,33 +93,37 @@ export default function ExcusesPage() {
       </div>
 
       {/* Empty state */}
-      {!currentExcuse && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-surface border border-dashed border-muted-dark/40 rounded-2xl p-12 text-center"
-        >
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-            <SmileyWink size={24} className="text-foreground/25" />
-          </div>
-          <p className="text-sm text-foreground/35 font-medium mb-1">
-            No excuse yet
-          </p>
-          <p className="text-xs text-foreground/25">
-            Hit the button. You know you need one.
-          </p>
-        </motion.div>
-      )}
+      <AnimatePresence mode="wait">
+        {!currentExcuse && !isShuffling && (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.15 } }}
+            className="bg-surface border border-dashed border-muted-dark/40 rounded-2xl p-12 text-center"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+              <SmileyWink size={24} className="text-foreground/25" />
+            </div>
+            <p className="text-sm text-foreground/35 font-medium mb-1">
+              No excuse yet
+            </p>
+            <p className="text-xs text-foreground/25">
+              Hit the button. You know you need one.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Result */}
       <AnimatePresence mode="wait">
-        {currentExcuse && (
+        {currentExcuse && !isShuffling && (
           <motion.div
-            key={`${currentExcuse.id}-${spinKey}`}
-            initial={{ opacity: 0, scale: 0.88, rotateX: -8 }}
-            animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-            exit={{ opacity: 0, scale: 0.92 }}
-            transition={{ type: "spring", stiffness: 350, damping: 28 }}
+            key={displayKey}
+            initial={{ opacity: 0, y: 20, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.97, transition: { duration: 0.15 } }}
+            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
             className="relative bg-surface border border-muted rounded-2xl p-8 sm:p-10 max-w-lg overflow-hidden"
           >
             {/* Watermark */}

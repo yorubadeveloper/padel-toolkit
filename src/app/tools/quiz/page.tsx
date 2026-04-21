@@ -206,7 +206,7 @@ export default function QuizPage() {
                   transition={{ type: "spring", delay: 0.15 }}
                   className="w-16 h-16 rounded-2xl bg-accent-light flex items-center justify-center text-accent mx-auto mb-5"
                 >
-                  {score >= 10 ? (
+                  {score >= 22 ? (
                     <Confetti size={32} weight="duotone" />
                   ) : (
                     <Trophy size={32} weight="duotone" />

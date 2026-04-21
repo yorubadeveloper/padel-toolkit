@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { ToolPageHeader } from "@/components/ui/ToolPageHeader";
 import { Button } from "@/components/ui/Button";
@@ -12,7 +12,6 @@ import {
   Timer,
   Users,
   Lightning,
-  ArrowsClockwise,
   Sparkle,
 } from "@phosphor-icons/react";
 import Image from "next/image";
@@ -29,8 +28,9 @@ export default function DrillsPage() {
   const [selectedCategory, setSelectedCategory] = useState<DrillCategory | "all">("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState<typeof difficulties[number] | "all">("all");
   const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [spinKey, setSpinKey] = useState(0);
+  const [isShuffling, setIsShuffling] = useState(false);
+  const [displayKey, setDisplayKey] = useState(0);
+  const lastIdRef = useRef<string | null>(null);
 
   const getFilteredDrills = useCallback(() => {
     return drills.filter((d) => {
@@ -40,23 +40,25 @@ export default function DrillsPage() {
     });
   }, [selectedCategory, selectedDifficulty]);
 
-  const randomize = () => {
+  const randomize = useCallback(() => {
     const filtered = getFilteredDrills();
     if (filtered.length === 0) return;
 
-    setIsSpinning(true);
-    setSpinKey((k) => k + 1);
-    let count = 0;
-    const interval = setInterval(() => {
-      const random = filtered[Math.floor(Math.random() * filtered.length)];
-      setCurrentDrill(random);
-      count++;
-      if (count > 10) {
-        clearInterval(interval);
-        setIsSpinning(false);
+    setIsShuffling(true);
+
+    setTimeout(() => {
+      let pick = filtered[Math.floor(Math.random() * filtered.length)];
+      if (filtered.length > 1) {
+        while (pick.id === lastIdRef.current) {
+          pick = filtered[Math.floor(Math.random() * filtered.length)];
+        }
       }
-    }, 70);
-  };
+      lastIdRef.current = pick.id;
+      setCurrentDrill(pick);
+      setDisplayKey((k) => k + 1);
+      setIsShuffling(false);
+    }, 300);
+  }, [getFilteredDrills]);
 
   const filtered = getFilteredDrills();
 
@@ -126,8 +128,8 @@ export default function DrillsPage() {
 
       {/* Randomize button */}
       <div className="flex items-center gap-3 mb-8">
-        <Button onClick={randomize} size="lg" disabled={filtered.length === 0}>
-          <Shuffle size={18} className={isSpinning ? "animate-spin" : ""} />
+        <Button onClick={randomize} size="lg" disabled={filtered.length === 0 || isShuffling}>
+          <Shuffle size={18} className={isShuffling ? "animate-spin" : ""} />
           {currentDrill ? "Another drill" : "Randomize"}
         </Button>
         <span className="text-xs font-medium text-foreground/25">
@@ -146,13 +148,13 @@ export default function DrillsPage() {
 
       {/* Current drill */}
       <AnimatePresence mode="wait">
-        {currentDrill && (
+        {currentDrill && !isShuffling && (
           <motion.div
-            key={`${currentDrill.id}-${spinKey}`}
-            initial={{ opacity: 0, scale: 0.92, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 350, damping: 28 }}
+            key={displayKey}
+            initial={{ opacity: 0, y: 20, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.97, transition: { duration: 0.15 } }}
+            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
             className="relative bg-surface border border-muted rounded-2xl p-7 sm:p-9 overflow-hidden"
           >
             {/* Watermark illustration */}
