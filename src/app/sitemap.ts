@@ -10,6 +10,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "side-picker",
     "quiz",
     "excuses",
+    "court-finder",
+    "rules",
+    "shot-of-the-day",
+    "bingo",
+    "what-to-wear",
+    "warm-up",
+    "rating",
+    "mvp",
   ];
 
   return [
